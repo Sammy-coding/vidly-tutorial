@@ -1,9 +1,9 @@
 import React, { Component } from "react";
 import Form from "./common/form";
 import Joi from "joi-browser";
-import { getGenres } from "../services/fakeGenreService";
-import { getMovie } from "../services/fakeMovieService";
-import { saveMovie } from './../services/fakeMovieService';
+import { getGenres } from "../services/genreService";
+import { getMovie } from "../services/movieService";
+import { saveMovie } from "../services/movieService";
 
 class MovieForm extends Form {
   state = {
@@ -12,16 +12,20 @@ class MovieForm extends Form {
     errors: {},
   };
 
-  componentDidMount() {
-    const genre = getGenres();
+  async componentDidMount() {
+    const { data: genre } = await getGenres();
     this.setState({ genre });
 
     const movieId = this.props.match.params.id;
     if (movieId === "new") return;
 
-    const movie = getMovie(movieId);
-    if (!movie) return this.props.history.replace("/not-found");
-    this.setState({ data: this.mapToViewModel(movie) });
+    try {
+      const { data: movie } = await getMovie(movieId);
+      this.setState({ data: this.mapToViewModel(movie) });
+    } catch (ex) {
+      if (ex.response && ex.response.status === 400)
+        this.props.history.replace("/not-found");
+    }
   }
 
   mapToViewModel(movie) {
@@ -42,11 +46,11 @@ class MovieForm extends Form {
     rate: Joi.number().min(0).max(5).label("Rate"),
   };
 
-  doSubmit = () => {
-    saveMovie(this.state.data);
+  doSubmit = async () => {
+    await saveMovie(this.state.data);
 
-    this.props.history.push('/movies')
-  }
+    this.props.history.push("/movies");
+  };
 
   render() {
     return (
@@ -54,7 +58,7 @@ class MovieForm extends Form {
         <h1>MOVIE FORM</h1>
         <form onSubmit={this.handleSubmit}>
           {this.renderInput("title", "Title")}
-          {this.renderSelect("genreId", "Genre", this.state.genre )}
+          {this.renderSelect("genreId", "Genre", this.state.genre)}
           {this.renderInput("numberInStock", "Number in Stock")}
           {this.renderInput("rate", "Rate")}
           {this.renderButton("Save Movie")}
